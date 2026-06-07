@@ -14,12 +14,11 @@ public class SkufarFilterModel : PageModel
         _filters = filters;
     }
 
-    // ── Identity ───────────────────────────────────────────────
     [BindProperty] public string? FilterId { get; set; }
     [BindProperty] public string FilterName { get; set; } = "";
-
-    // ── Kufar config ───────────────────────────────────────────
     [BindProperty] public string? Tag { get; set; }
+    [BindProperty] public string? AlternativeTagsRaw { get; set; }
+    [BindProperty] public string? BlacklistRaw { get; set; }
     [BindProperty] public bool OnlyTitleSearch { get; set; }
     [BindProperty] public int? PriceMin { get; set; }
     [BindProperty] public int? PriceMax { get; set; }
@@ -39,13 +38,11 @@ public class SkufarFilterModel : PageModel
     [BindProperty] public int? Region { get; set; }
     [BindProperty] public List<int>? Areas { get; set; }
 
-    // ── Results ────────────────────────────────────────────────
     public List<SkufarAd> Results { get; set; } = new();
     public string? GeneratedUrl { get; set; }
     public string? ErrorMessage { get; set; }
     public bool IsEdit => !string.IsNullOrEmpty(FilterId);
 
-    // ── GET ────────────────────────────────────────────────────
     public async Task OnGetAsync(string? id, bool run = false)
     {
         if (id == null) return;
@@ -55,18 +52,20 @@ public class SkufarFilterModel : PageModel
         FilterId   = f.Id;
         FilterName = f.Name;
         Tag        = f.Tag;
-        OnlyTitleSearch = f.OnlyTitleSearch;
+        AlternativeTagsRaw = ToRaw(f.AlternativeTags);
+        BlacklistRaw       = ToRaw(f.BlacklistWords);
+        OnlyTitleSearch  = f.OnlyTitleSearch;
         PriceMin   = f.PriceMin;
         PriceMax   = f.PriceMax;
         Limit      = f.Limit;
         Currency   = f.Currency;
         Condition  = f.Condition;
         SellerType = f.SellerType;
-        KufarDelivery   = f.KufarDelivery;
-        KufarPayment    = f.KufarPayment;
-        KufarHalva      = f.KufarHalva;
-        OnlyWithPhotos  = f.OnlyWithPhotos;
-        OnlyWithVideos  = f.OnlyWithVideos;
+        KufarDelivery    = f.KufarDelivery;
+        KufarPayment     = f.KufarPayment;
+        KufarHalva       = f.KufarHalva;
+        OnlyWithPhotos   = f.OnlyWithPhotos;
+        OnlyWithVideos   = f.OnlyWithVideos;
         OnlyWithExchange = f.OnlyWithExchange;
         SortType    = f.SortType;
         Category    = f.Category;
@@ -77,17 +76,14 @@ public class SkufarFilterModel : PageModel
         if (run) await RunSearchAsync();
     }
 
-    // ── POST: Save ─────────────────────────────────────────────
     public IActionResult OnPostSave()
     {
         _filters.Upsert(BuildFilter());
         return RedirectToPage("/Index");
     }
 
-    // ── POST: Search ───────────────────────────────────────────
     public async Task OnPostSearchAsync() => await RunSearchAsync();
 
-    // ── POST: SaveAndSearch ────────────────────────────────────
     public async Task OnPostSaveSearchAsync()
     {
         var filter = BuildFilter();
@@ -96,12 +92,13 @@ public class SkufarFilterModel : PageModel
         await RunSearchAsync();
     }
 
-    // ── Helpers ────────────────────────────────────────────────
     private SavedFilter BuildFilter() => new()
     {
         Id   = string.IsNullOrEmpty(FilterId) ? Guid.NewGuid().ToString() : FilterId,
         Name = string.IsNullOrWhiteSpace(FilterName) ? "Без названия" : FilterName,
         Tag  = Tag,
+        AlternativeTags = ParseList(AlternativeTagsRaw),
+        BlacklistWords  = ParseList(BlacklistRaw),
         OnlyTitleSearch  = OnlyTitleSearch,
         PriceMin  = PriceMin,
         PriceMax  = PriceMax,
@@ -126,13 +123,15 @@ public class SkufarFilterModel : PageModel
     {
         var filter = BuildFilter();
         GeneratedUrl = _query.BuildUrl(filter);
-        try
-        {
-            Results = await _query.SearchAsync(filter);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = ex.Message;
-        }
+        try { Results = await _query.SearchAllTagsAsync(filter); }
+        catch (Exception ex) { ErrorMessage = ex.Message; }
     }
+
+    private static List<string>? ParseList(string? raw) =>
+        string.IsNullOrWhiteSpace(raw) ? null :
+        raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+           .Where(s => !string.IsNullOrEmpty(s)).ToList();
+
+    private static string? ToRaw(List<string>? list) =>
+        list is { Count: > 0 } ? string.Join(", ", list) : null;
 }

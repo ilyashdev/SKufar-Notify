@@ -43,7 +43,8 @@ public class SKufarQueryService
         if (f.OnlyWithPhotos) Add("oph", "true");
         if (f.OnlyWithVideos) Add("ovi", "true");
         if (f.OnlyWithExchange) Add("pse", "true");
-        if (f.SortType.HasValue) Add("sort", f.SortType.Value == 1 ? "prc.d" : "prc.a");
+        var sort = f.SortType switch { 1 => "prc.d", 2 => "prc.a", _ => "lst.d" };
+        Add("sort", sort);
         if (f.Condition.HasValue) Add("cnd", f.Condition.Value.ToString());
         if (f.SellerType.HasValue) Add("cmp", f.SellerType.Value.ToString());
         if (f.Region.HasValue) Add("rgn", f.Region.Value.ToString());
@@ -59,6 +60,39 @@ public class SKufarQueryService
         resp.EnsureSuccessStatusCode();
         return ParseResponse(await resp.Content.ReadAsStringAsync(ct));
     }
+
+    public async Task<List<SkufarAd>> SearchAllTagsAsync(SavedFilter filter, CancellationToken ct = default)
+    {
+        var tags = new List<string?> { filter.Tag };
+        if (filter.AlternativeTags?.Count > 0)
+            tags.AddRange(filter.AlternativeTags.Where(t => !string.IsNullOrWhiteSpace(t)));
+
+        if (tags.Count == 1) return await SearchAsync(filter, ct);
+
+        var seenIds = new HashSet<int>();
+        var results = new List<SkufarAd>();
+        foreach (var tag in tags)
+        {
+            var ads = await SearchAsync(WithTag(filter, tag), ct);
+            foreach (var ad in ads.Where(a => seenIds.Add(a.Id)))
+                results.Add(ad);
+        }
+        return results;
+    }
+
+    private static SavedFilter WithTag(SavedFilter f, string? tag) => new()
+    {
+        Id = f.Id, Name = f.Name, CreatedAt = f.CreatedAt,
+        Tag = tag, OnlyTitleSearch = f.OnlyTitleSearch,
+        PriceMin = f.PriceMin, PriceMax = f.PriceMax,
+        Limit = f.Limit, Currency = f.Currency,
+        Condition = f.Condition, SellerType = f.SellerType,
+        KufarDelivery = f.KufarDelivery, KufarPayment = f.KufarPayment, KufarHalva = f.KufarHalva,
+        OnlyWithPhotos = f.OnlyWithPhotos, OnlyWithVideos = f.OnlyWithVideos,
+        OnlyWithExchange = f.OnlyWithExchange,
+        SortType = f.SortType, Category = f.Category, SubCategory = f.SubCategory,
+        Region = f.Region, Areas = f.Areas
+    };
 
     public static List<SkufarAd> ParseResponse(string json)
     {

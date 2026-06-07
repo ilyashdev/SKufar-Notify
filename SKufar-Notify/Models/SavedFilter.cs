@@ -25,4 +25,6 @@ public class SavedFilter
     public int? SubCategory { get; set; }
     public int? Region { get; set; }
     public List<int>? Areas { get; set; }
+    public List<string>? AlternativeTags { get; set; }
+    public List<string>? BlacklistWords { get; set; }
 }

@@ -14,6 +14,7 @@ builder.Services.AddSingleton<FilterStorageService>();
 builder.Services.AddSingleton<AppConfigService>();
 builder.Services.AddTransient<SKufarQueryService>();
 builder.Services.AddHostedService<SKufarWorker>();
+builder.Services.AddHostedService<TelegramBotService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

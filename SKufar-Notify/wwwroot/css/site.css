@@ -1,3 +1,8 @@
+.pixel-art {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
 @font-face {
     font-family: 'MinecraftRus';
     src: url('../fonts/minecraft.ttf') format('truetype');

@@ -1,6 +1,5 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-
 namespace SKufar;
 
 public class SKufarWorker : BackgroundService
@@ -13,6 +12,7 @@ public class SKufarWorker : BackgroundService
     private readonly string _placeholderPath;
 
     private Dictionary<string, HashSet<int>> _seen = new();
+    private bool _firstCycle = true;
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(10);
 
     public SKufarWorker(
@@ -57,17 +57,22 @@ public class SKufarWorker : BackgroundService
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(TimeSpan.FromSeconds(10));
 
-                var ads = await _query.SearchAsync(WorkerFilter(filter), cts.Token);
+                var ads = await _query.SearchAllTagsAsync(WorkerFilter(filter), cts.Token);
                 var currentIds = ads.Select(a => a.Id).ToHashSet();
 
-                if (!_seen.TryGetValue(filter.Id, out var prev))
+                if (_firstCycle || !_seen.TryGetValue(filter.Id, out var prev))
                 {
                     _seen[filter.Id] = currentIds;
                     _logger.LogInformation("Filter '{Name}' seeded with {Count} ads", filter.Name, currentIds.Count);
                     continue;
                 }
 
-                foreach (var ad in ads.Where(a => !prev.Contains(a.Id)))
+                var blacklist = filter.BlacklistWords ?? new List<string>();
+                var newAds = ads
+                    .Where(a => !prev.Contains(a.Id))
+                    .Where(a => !blacklist.Any(w => a.Title.Contains(w, StringComparison.OrdinalIgnoreCase)));
+
+                foreach (var ad in newAds)
                     await SendAsync(cfg, filter.Name, ad, ct);
 
                 _seen[filter.Id] = currentIds;
@@ -82,6 +87,7 @@ public class SKufarWorker : BackgroundService
             }
         }
 
+        _firstCycle = false;
         SaveCache();
     }
 
@@ -95,7 +101,7 @@ public class SKufarWorker : BackgroundService
         KufarDelivery = f.KufarDelivery, KufarPayment = f.KufarPayment, KufarHalva = f.KufarHalva,
         OnlyWithPhotos = f.OnlyWithPhotos, OnlyWithVideos = f.OnlyWithVideos,
         OnlyWithExchange = f.OnlyWithExchange,
-        SortType = null,
+        SortType = 0,
         Category = f.Category, SubCategory = f.SubCategory,
         Region = f.Region, Areas = f.Areas
     };
@@ -108,17 +114,15 @@ public class SKufarWorker : BackgroundService
         var date = DateTime.TryParse(ad.ListTime, out var dt)
             ? dt.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : ad.ListTime;
         var phone = ad.PhoneHidden ? "скрыт" : "доступен";
-        var desc = string.IsNullOrWhiteSpace(ad.Description)
-            ? "—"
-            : (ad.Description.Length > 30 ? ad.Description[..30] + "…" : ad.Description);
+        var seller = string.IsNullOrWhiteSpace(ad.SellerName) ? "—" : Esc(ad.SellerName);
 
         var caption =
-            $"📌 <b>{Esc(filterName)}</b>\n" +
-            $"🏷 {Esc(ad.Title)}\n" +
-            $"📅 {date}\n" +
-            $"💰 {ad.PriceByn} BYN\n" +
-            $"📞 {phone}\n" +
-            $"📝 {Esc(desc)}\n" +
+            $"📌 Фильтр: <b>{Esc(filterName)}</b>\n" +
+            $"🏷 Название: {Esc(ad.Title)}\n" +
+            $"📅 Дата: {date}\n" +
+            $"💰 Цена: {ad.PriceByn} BYN\n" +
+            $"📞 Телефон: {phone}\n" +
+            $"👤 Продавец: {seller}\n" +
             $"🔗 <a href=\"{ad.Link}\">Открыть объявление</a>";
 
         var apiUrl = $"https://api.telegram.org/bot{cfg.TelegramBotToken}";

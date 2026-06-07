@@ -36,6 +36,14 @@
                     <label class="form-check-label fw-semibold" for="ot">Только в заголовке</label>
                 </div>
             </div>
+            <div class="col-12">
+                <label class="form-label">Альтернативные запросы <small class="text-muted fw-normal normal-case">(через запятую)</small></label>
+                <input type="text" class="form-control" asp-for="AlternativeTagsRaw" placeholder="MacBook Pro, ноутбук Apple">
+            </div>
+            <div class="col-12">
+                <label class="form-label">Блэклист слов в заголовке <small class="text-muted fw-normal normal-case">(через запятую — объявления с этими словами не придут)</small></label>
+                <input type="text" class="form-control" asp-for="BlacklistRaw" placeholder="сломан, не работает, ремонт">
+            </div>
         </div>
     </div>
 

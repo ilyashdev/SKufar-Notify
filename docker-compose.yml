@@ -3,6 +3,9 @@ services:
     build:
       context: ./SKufar-Notify
       dockerfile: Dockerfile
+      cache_from:
+        - mcr.microsoft.com/dotnet/sdk:10.0
+        - mcr.microsoft.com/dotnet/aspnet:10.0
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - SKUFAR_USERNAME=admin
