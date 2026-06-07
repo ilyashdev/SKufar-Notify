@@ -1,0 +1,172 @@
+<div align="center">
+
+<img src="wwwroot/ico.png" width="96" style="image-rendering: pixelated;" alt="SKufar Logo"/>
+
+# SKufar Notify
+
+**Веб-интерфейс для мониторинга объявлений на [Kufar.by](https://kufar.by) с уведомлениями в Telegram**
+
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
+
+</div>
+
+---
+
+## Навигация
+
+- [Что это](#что-это)
+- [Функционал](#функционал)
+- [Технологии](#технологии)
+- [Развёртывание](#развёртывание)
+  - [Быстрый старт](#быстрый-старт)
+  - [Переменные окружения](#переменные-окружения)
+  - [Структура файлов](#структура-файлов)
+  - [Данные](#данные)
+  - [Получение Telegram Bot Token и Chat ID](#получение-telegram-bot-token-и-chat-id)
+- [Разработка без Docker](#разработка-без-docker)
+- [Связь с оригиналом](#связь-с-оригиналом)
+
+---
+
+## Что это
+
+**SKufar Notify** — ASP.NET Core веб-приложение для создания и управления фильтрами поиска объявлений на Kufar.by. Фоновый сервис периодически опрашивает API Kufar и отправляет новые объявления в Telegram.
+
+---
+
+## Функционал
+
+### Фильтры
+- Поисковый запрос (ключевые слова)
+- Категория и подкатегория
+- Диапазон цены (BYN)
+- Регион и район
+- Состояние товара (новое / б/у)
+- Тип продавца (частник / компания)
+- Дополнительные флаги: только с фото, с видео, с обменом
+
+### Уведомления
+- Фоновый опрос каждые **10 секунд**
+- Кеш seen-объявлений сохраняется в `Data/seen.json` — повторные уведомления не отправляются даже после перезапуска
+- При первом запуске новый фильтр заполняет кеш без отправки (нет спама)
+- Отправка по одному объявлению с фото (или заглушкой если фото нет)
+
+### Формат сообщения в Telegram
+```
+📌 Название фильтра
+🏷 Название объявления
+📅 Дата публикации
+💰 Цена в BYN
+📞 Телефон (доступен / скрыт)
+📝 Первые 30 символов описания
+🔗 Ссылка на объявление
+```
+
+### Команды бота
+| Команда | Описание |
+|---|---|
+| `/chatid` | Бот ответит Chat ID текущего чата — удобно для настройки уведомлений |
+
+### Настройки
+- Логин и пароль для входа в веб-интерфейс
+- Telegram Bot Token и Chat ID
+- Все настройки хранятся в `Data/config.json`
+
+---
+
+## Технологии
+
+| Слой | Стек |
+|---|---|
+| Backend | ASP.NET Core 10, Razor Pages |
+| Фоновый воркер | `BackgroundService` (.NET Hosted Service) |
+| Хранение данных | JSON-файлы (`Data/`) |
+| Аутентификация | Cookie Auth |
+| Reverse proxy | nginx |
+| Контейнеризация | Docker, Docker Compose |
+
+---
+
+## Развёртывание
+
+### Быстрый старт
+
+```bash
+git clone <repo-url>
+cd WebApplication3
+```
+
+### Переменные окружения
+
+Отредактируй `docker-compose.yml` — укажи начальные credentials и Telegram токен:
+
+```yaml
+environment:
+  - SKUFAR_USERNAME=admin
+  - SKUFAR_PASSWORD=admin
+  - SKUFAR_TG_TOKEN=123456:ABC-токен-бота
+  - SKUFAR_TG_CHAT=-1001234567890
+```
+
+> Переменные используются **только при первом запуске** для создания `Data/config.json`.  
+> Дальше всё меняется через веб-интерфейс → Настройки.
+
+```bash
+docker compose up -d --build
+```
+
+Приложение доступно на `http://localhost`.
+
+> **Первый билд долгий** — Docker качает образ .NET SDK (~800 МБ). Это один раз, дальше быстро.
+
+### Структура файлов
+
+```
+WebApplication3/
+├── SKufar-Notify/
+│   ├── Dockerfile
+│   └── ...
+├── docker-compose.yml
+└── nginx.conf
+```
+
+### Данные
+
+Все данные хранятся в Docker volume `skufar_data`, смонтированном в `/app/Data`:
+
+| Файл | Содержимое |
+|---|---|
+| `config.json` | Логин, пароль, Telegram токен и chat ID |
+| `filters.json` | Сохранённые фильтры пользователя |
+| `seen.json` | Кеш отправленных объявлений |
+
+### Получение Telegram Bot Token и Chat ID
+
+1. Создай бота через [@BotFather](https://t.me/BotFather) → `/newbot` → скопируй токен
+2. Добавь бота в нужный чат или напиши ему в личку
+3. Напиши боту `/chatid` — он ответит нужным идентификатором
+
+---
+
+## Разработка без Docker
+
+```bash
+cd SKufar-Notify
+dotnet run
+```
+
+Приложение стартует на `https://localhost:5001`.
+
+---
+
+## Связь с оригиналом
+
+Проект вдохновлён [Kufar-Telegram-Notifier](https://github.com/TechUnRestricted/Kufar-Telegram-Notifier) by **TechUnRestricted** (Apache 2.0) — я позаимствовал идею и основывался на коде запросов к API Kufar, реализовав поверх него полноценное веб-приложение на .NET.
+
+---
+
+<div align="center">
+<sub>Built with ❤️ and <a href="https://claude.ai">Claude</a></sub>
+</div>
