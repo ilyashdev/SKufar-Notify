@@ -94,8 +94,8 @@
 ### Быстрый старт
 
 ```bash
-git clone <repo-url>
-cd WebApplication3
+git clone https://github.com/ilyashdev/SKufar-Notify
+cd SKufar-Notify
 ```
 
 ### Переменные окружения
