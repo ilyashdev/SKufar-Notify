@@ -1,0 +1,222 @@
+@font-face {
+    font-family: 'MinecraftRus';
+    src: url('../fonts/minecraft.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+:root {
+    /* Override Bootstrap's font system so Minecraftia wins everywhere */
+    --bs-body-font-family: 'MinecraftRus', monospace;
+    --bs-font-monospace:   'MinecraftRus', monospace;
+    --bs-btn-font-family:  'MinecraftRus', monospace;
+    /* Skufar brand */
+    --skufar-primary:       #00a47c;
+    --skufar-primary-dark:  #007d5f;
+    --skufar-primary-light: #e6f7f2;
+    --skufar-orange:        #f60;
+    --skufar-text:          #1a1a1a;
+    --skufar-muted:         #6b7280;
+    --skufar-bg:            #f3f6f5;
+    --skufar-border:        #dde5e2;
+    --skufar-card:          #ffffff;
+    --skufar-radius:        12px;
+}
+
+/* ── Base ── */
+html { font-size: 14px; position: relative; min-height: 100%; }
+body { background: var(--skufar-bg); color: var(--skufar-text); margin-bottom: 60px; }
+
+/*
+ * Minecraftia содержит только латиницу — кириллица будет
+ * отображаться системным шрифтом (ограничение самого шрифта).
+ * CSS ниже применяет его ко всем элементам без исключения.
+ */
+html,
+html *,
+html *::before,
+html *::after,
+html *::placeholder {
+    font-family: 'MinecraftRus', monospace !important;
+}
+
+/* ── Navbar ── */
+.navbar {
+    background: #fff !important;
+    border-bottom: 3px solid var(--skufar-primary);
+    box-shadow: 0 2px 12px rgba(0,0,0,.07);
+    padding: .6rem 0;
+}
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.4rem;
+    color: var(--skufar-primary) !important;
+    letter-spacing: 1px;
+}
+.nav-link { color: var(--skufar-text) !important; font-weight: 500; }
+.nav-link:hover { color: var(--skufar-primary) !important; }
+.nav-link.active { color: var(--skufar-primary) !important; border-bottom: 2px solid var(--skufar-primary); }
+
+/* ── Buttons ── */
+.btn-skufar {
+    background: var(--skufar-primary);
+    border: none;
+    color: #fff;
+    border-radius: 8px;
+    font-weight: 600;
+    padding: .45rem 1.2rem;
+    transition: background .15s, box-shadow .15s, transform .1s;
+}
+.btn-skufar:hover, .btn-skufar:focus {
+    background: var(--skufar-primary-dark);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0,164,124,.35);
+    transform: translateY(-1px);
+}
+.btn-skufar-outline {
+    background: transparent;
+    border: 2px solid var(--skufar-primary);
+    color: var(--skufar-primary);
+    border-radius: 8px;
+    font-weight: 600;
+    padding: .4rem 1.1rem;
+    transition: all .15s;
+}
+.btn-skufar-outline:hover {
+    background: var(--skufar-primary);
+    color: #fff;
+}
+.btn-danger-soft {
+    background: #fff0f0;
+    border: 1.5px solid #f5c6c6;
+    color: #c0392b;
+    border-radius: 8px;
+    font-weight: 500;
+    padding: .4rem 1rem;
+    transition: all .15s;
+}
+.btn-danger-soft:hover { background: #c0392b; color: #fff; border-color: #c0392b; }
+
+/* ── Form controls ── */
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 1.5px solid var(--skufar-border);
+    font-size: .93rem;
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--skufar-primary);
+    box-shadow: 0 0 0 3px rgba(0,164,124,.18);
+}
+.form-check-input:checked {
+    background-color: var(--skufar-primary);
+    border-color: var(--skufar-primary);
+}
+.form-check-input:focus { box-shadow: 0 0 0 3px rgba(0,164,124,.2); }
+.form-label { font-weight: 600; font-size: .85rem; color: var(--skufar-muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: .35rem; }
+
+/* ── Section cards ── */
+.form-section {
+    background: var(--skufar-card);
+    border: 1.5px solid var(--skufar-border);
+    border-radius: var(--skufar-radius);
+    padding: 22px 24px;
+    margin-bottom: 16px;
+}
+.form-section-title {
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--skufar-primary);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--skufar-border);
+    margin-bottom: 18px;
+}
+
+/* ── Filter list cards ── */
+.filter-card {
+    background: var(--skufar-card);
+    border: 1.5px solid var(--skufar-border);
+    border-radius: var(--skufar-radius);
+    padding: 20px 22px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: box-shadow .15s, transform .1s;
+}
+.filter-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.09); transform: translateY(-2px); }
+.filter-card-icon {
+    width: 48px; height: 48px; min-width: 48px;
+    background: var(--skufar-primary-light);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+}
+.filter-card-body { flex: 1; min-width: 0; }
+.filter-card-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--skufar-text);
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.filter-card-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.filter-tag {
+    display: inline-flex;
+    align-items: center;
+    background: var(--skufar-primary-light);
+    color: var(--skufar-primary-dark);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: .78rem;
+    font-weight: 600;
+}
+.filter-tag-orange {
+    background: #fff3e6;
+    color: var(--skufar-orange);
+}
+.filter-card-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── Login page ── */
+.login-wrapper { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--skufar-primary-light) 0%, #fff 60%); }
+.login-card {
+    width: 420px;
+    background: #fff;
+    border-radius: 20px;
+    padding: 44px 40px;
+    box-shadow: 0 16px 56px rgba(0,0,0,.13);
+}
+.login-logo { text-align: center; margin-bottom: 32px; }
+.login-logo .logo-text { font-size: 2.2rem; font-weight: 700; color: var(--skufar-primary); letter-spacing: 3px; }
+.login-logo .logo-sub { font-size: .85rem; color: var(--skufar-muted); margin-top: 4px; }
+
+/* ── Ad results ── */
+.ad-card {
+    background: var(--skufar-card);
+    border: 1.5px solid var(--skufar-border);
+    border-radius: var(--skufar-radius);
+    overflow: hidden;
+    transition: box-shadow .15s, transform .1s;
+    height: 100%;
+}
+.ad-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.11); transform: translateY(-2px); }
+.ad-card img { width: 100%; height: 190px; object-fit: cover; }
+.ad-card-body { padding: 14px 16px; }
+.ad-price { font-size: 1.15rem; font-weight: 800; color: var(--skufar-primary); }
+.ad-title a { color: var(--skufar-text); text-decoration: none; font-weight: 600; font-size: .95rem; line-height: 1.35; }
+.ad-title a:hover { color: var(--skufar-primary); }
+
+/* ── Page header ── */
+.page-header { margin-bottom: 24px; }
+.page-header h2 { font-weight: 800; font-size: 1.6rem; color: var(--skufar-text); margin: 0; }
+
+/* ── Empty state ── */
+.empty-state { text-align: center; padding: 60px 20px; }
+.empty-state-icon { font-size: 3.5rem; margin-bottom: 16px; opacity: .5; }
+.empty-state p { color: var(--skufar-muted); font-size: 1rem; }
+
+/* ── Footer ── */
+footer { background: #fff; border-top: 1.5px solid var(--skufar-border) !important; }

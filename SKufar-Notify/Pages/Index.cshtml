@@ -1,0 +1,66 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Мои фильтры";
+    ViewData["ActivePage"] = "Index";
+}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <h2>Мои фильтры</h2>
+    <a asp-page="/KufarFilter" class="btn btn-skufar">+ карДобавить фильтр</a>
+</div>
+
+@if (!Model.Filters.Any())
+{
+    <div class="form-section empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <h5 class="fw-bold mb-2">Фильтров пока нет</h5>
+        <p>Создайте первый фильтр, чтобы отслеживать объявления на Kufar</p>
+        <a asp-page="/KufarFilter" class="btn btn-skufar px-4 mt-2">Создать фильтр</a>
+    </div>
+}
+else
+{
+    foreach (var f in Model.Filters)
+    {
+        <div class="filter-card">
+            <div class="filter-card-icon">🔍</div>
+            <div class="filter-card-body">
+                <div class="filter-card-name">@f.Name</div>
+                <div class="filter-card-meta">
+                    @if (!string.IsNullOrEmpty(f.Tag))
+                    {
+                        <span class="filter-tag">«@f.Tag»</span>
+                    }
+                    @if (f.Category.HasValue)
+                    {
+                        <span class="filter-tag">@SkufarEnums.CategoryName(f.Category)</span>
+                    }
+                    @if (f.Region.HasValue)
+                    {
+                        <span class="filter-tag">📍 @SkufarEnums.RegionName(f.Region)</span>
+                    }
+                    @if (f.PriceMin.HasValue || f.PriceMax.HasValue)
+                    {
+                        var lo = f.PriceMin.HasValue ? f.PriceMin.Value + " BYN" : "0";
+                        var hi = f.PriceMax.HasValue ? f.PriceMax.Value + " BYN" : "∞";
+                        <span class="filter-tag filter-tag-orange">@lo — @hi</span>
+                    }
+                    @if (f.OnlyWithPhotos) { <span class="filter-tag">📷 Фото</span> }
+                    @if (f.KufarDelivery) { <span class="filter-tag">📦 Доставка</span> }
+                    @if (f.Condition == 2) { <span class="filter-tag">✨ Новое</span> }
+                    @if (f.Condition == 1) { <span class="filter-tag">♻️ Б/У</span> }
+                    <span class="text-muted" style="font-size:.75rem">@f.CreatedAt.ToString("dd.MM.yyyy")</span>
+                </div>
+            </div>
+            <div class="filter-card-actions">
+                <a href="/KufarFilter?id=@f.Id" class="btn btn-skufar">Изменить</a>
+                <form method="post" asp-page-handler="Delete" onsubmit="return confirm('Удалить фильтр «@f.Name»?')">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@f.Id">
+                    <button type="submit" class="btn btn-danger-soft">✕</button>
+                </form>
+            </div>
+        </div>
+    }
+}

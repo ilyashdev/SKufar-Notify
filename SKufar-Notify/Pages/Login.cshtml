@@ -1,0 +1,33 @@
+@page
+@model LoginModel
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Вход";
+}
+
+<div class="login-wrapper">
+    <div class="login-card">
+        <div class="login-logo">
+            <div class="logo-text">skufar</div>
+            <div class="logo-sub">Монитор объявлений</div>
+        </div>
+
+        @if (Model.Error != null)
+        {
+            <div class="alert alert-danger rounded-3 py-2 mb-3" style="font-size:.9rem">@Model.Error</div>
+        }
+
+        <form method="post">
+            @Html.AntiForgeryToken()
+            <div class="mb-3">
+                <label class="form-label">Логин</label>
+                <input type="text" class="form-control form-control-lg" asp-for="Username" autofocus autocomplete="username">
+            </div>
+            <div class="mb-4">
+                <label class="form-label">Пароль</label>
+                <input type="password" class="form-control form-control-lg" asp-for="Password" autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn btn-skufar w-100 btn-lg">Войти</button>
+        </form>
+    </div>
+</div>
