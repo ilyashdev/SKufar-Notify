@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="wwwroot/ico.png" width="96" style="image-rendering: pixelated;" alt="SKufar Logo"/>
+<img src="SKufar-Notify/wwwroot/ico.png" width="96" style="image-rendering: pixelated;" alt="SKufar Logo"/>
 
 # SKufar Notify
 
