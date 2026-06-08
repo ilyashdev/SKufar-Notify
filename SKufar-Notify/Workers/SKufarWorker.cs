@@ -7,6 +7,7 @@ public class SKufarWorker : BackgroundService
     private readonly SKufarQueryService _query;
     private readonly FilterStorageService _filters;
     private readonly AppConfigService _config;
+    private readonly HttpClient _http;
     private readonly ILogger<SKufarWorker> _logger;
     private readonly string _cachePath;
     private readonly string _placeholderPath;
@@ -19,12 +20,14 @@ public class SKufarWorker : BackgroundService
         SKufarQueryService query,
         FilterStorageService filters,
         AppConfigService config,
+        IHttpClientFactory httpFactory,
         IWebHostEnvironment env,
         ILogger<SKufarWorker> logger)
     {
         _query = query;
         _filters = filters;
         _config = config;
+        _http = httpFactory.CreateClient();
         _logger = logger;
         _cachePath = Path.Combine(env.ContentRootPath, "Data", "seen.json");
         _placeholderPath = Path.Combine(env.WebRootPath, "1080.jpg");
@@ -132,11 +135,11 @@ public class SKufarWorker : BackgroundService
             $"🔗 <a href=\"{ad.Link}\">Открыть объявление</a>";
 
         var apiUrl = $"https://api.telegram.org/bot{cfg.TelegramBotToken}";
-        using var http = new HttpClient();
+        HttpResponseMessage resp;
 
         if (ad.Images.Count > 0)
         {
-            await http.PostAsJsonAsync($"{apiUrl}/sendPhoto", new
+            resp = await _http.PostAsJsonAsync($"{apiUrl}/sendPhoto", new
             {
                 chat_id = cfg.TelegramChatId,
                 photo = ad.Images[0],
@@ -152,7 +155,13 @@ public class SKufarWorker : BackgroundService
             form.Add(new StringContent(caption), "caption");
             form.Add(new StringContent("HTML"), "parse_mode");
             form.Add(new ByteArrayContent(imageBytes), "photo", "1080.jpg");
-            await http.PostAsync($"{apiUrl}/sendPhoto", form, ct);
+            resp = await _http.PostAsync($"{apiUrl}/sendPhoto", form, ct);
+        }
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            _logger.LogError("Telegram sendPhoto failed {Status}: {Body}", (int)resp.StatusCode, body);
         }
     }
 
