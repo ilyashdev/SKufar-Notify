@@ -50,15 +50,17 @@ public class SKufarWorker : BackgroundService
         var filters = _filters.GetAll();
         var cfg = _config.Get();
 
+        _logger.LogDebug("Cycle started, {Count} filter(s)", filters.Count);
+
         foreach (var filter in filters)
         {
             try
             {
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                cts.CancelAfter(TimeSpan.FromSeconds(10));
-
-                var ads = await _query.SearchAllTagsAsync(WorkerFilter(filter), cts.Token);
+                _logger.LogDebug("Filter '{Name}': fetching...", filter.Name);
+                var ads = await _query.SearchAllTagsAsync(WorkerFilter(filter), ct);
                 var currentIds = ads.Select(a => a.Id).ToHashSet();
+
+                _logger.LogDebug("Filter '{Name}': got {Total} ad(s)", filter.Name, ads.Count);
 
                 if (_firstCycle || !_seen.TryGetValue(filter.Id, out var prev))
                 {
@@ -70,16 +72,18 @@ public class SKufarWorker : BackgroundService
                 var blacklist = filter.BlacklistWords ?? new List<string>();
                 var newAds = ads
                     .Where(a => !prev.Contains(a.Id))
-                    .Where(a => !blacklist.Any(w => a.Title.Contains(w, StringComparison.OrdinalIgnoreCase)));
+                    .Where(a => !blacklist.Any(w => a.Title.Contains(w, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+
+                _logger.LogInformation("Filter '{Name}': {New} new ad(s)", filter.Name, newAds.Count);
 
                 foreach (var ad in newAds)
+                {
+                    _logger.LogInformation("Sending ad #{Id} '{Title}' for filter '{Name}'", ad.Id, ad.Title, filter.Name);
                     await SendAsync(cfg, filter.Name, ad, ct);
+                }
 
                 _seen[filter.Id] = currentIds;
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                _logger.LogWarning("Filter '{Name}' timed out", filter.Name);
             }
             catch (Exception ex)
             {
@@ -89,6 +93,7 @@ public class SKufarWorker : BackgroundService
 
         _firstCycle = false;
         SaveCache();
+        _logger.LogDebug("Cycle done");
     }
 
     private static SavedFilter WorkerFilter(SavedFilter f) => new()
