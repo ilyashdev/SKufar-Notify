@@ -1,19 +1,33 @@
-using System.Net.Http.Json;
-using System.Text.Json;
+using Telegram.Bot;
+using Telegram.Bot.Types.Enums;
 
 namespace SKufar;
 
 public class TelegramBotService : BackgroundService
 {
     private readonly AppConfigService _config;
+    private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<TelegramBotService> _logger;
-    private readonly HttpClient _http = new();
     private int _offset;
+    private TelegramBotClient? _bot;
+    private string? _botToken;
 
-    public TelegramBotService(AppConfigService config, ILogger<TelegramBotService> logger)
+    public TelegramBotService(AppConfigService config, IHttpClientFactory httpFactory, ILogger<TelegramBotService> logger)
     {
         _config = config;
+        _httpFactory = httpFactory;
         _logger = logger;
+    }
+
+    private TelegramBotClient? GetBot(string? token)
+    {
+        if (string.IsNullOrEmpty(token)) return null;
+        if (token != _botToken)
+        {
+            _botToken = token;
+            _bot = new TelegramBotClient(token, _httpFactory.CreateClient());
+        }
+        return _bot;
     }
 
     protected override async Task ExecuteAsync(CancellationToken ct)
@@ -30,40 +44,24 @@ public class TelegramBotService : BackgroundService
 
     private async Task PollAsync(CancellationToken ct)
     {
-        var token = _config.Get().TelegramBotToken;
-        if (string.IsNullOrEmpty(token)) return;
+        var bot = GetBot(_config.Get().TelegramBotToken);
+        if (bot == null) return;
 
-        var url = $"https://api.telegram.org/bot{token}/getUpdates?offset={_offset}&limit=20&timeout=0";
-        var resp = await _http.GetAsync(url, ct);
-        if (!resp.IsSuccessStatusCode) return;
+        var updates = await bot.GetUpdates(offset: _offset, limit: 20, cancellationToken: ct);
 
-        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
-        if (!doc.RootElement.GetProperty("ok").GetBoolean()) return;
-
-        foreach (var update in doc.RootElement.GetProperty("result").EnumerateArray())
+        foreach (var update in updates)
         {
-            _offset = update.GetProperty("update_id").GetInt32() + 1;
+            _offset = update.Id + 1;
+            if (update.Message?.Text == null) continue;
+            if (!update.Message.Text.StartsWith("/chatid", StringComparison.OrdinalIgnoreCase)) continue;
 
-            if (!update.TryGetProperty("message", out var msg)) continue;
-            if (!msg.TryGetProperty("text", out var textProp)) continue;
-
-            var text = textProp.GetString() ?? "";
-            if (!text.StartsWith("/chatid", StringComparison.OrdinalIgnoreCase)) continue;
-
-            var chatId = msg.GetProperty("chat").GetProperty("id").GetInt64();
-            var chatTitle = msg.GetProperty("chat").TryGetProperty("title", out var t)
-                ? t.GetString() : null;
-
+            var chatId = update.Message.Chat.Id;
+            var chatTitle = update.Message.Chat.Title;
             var reply = chatTitle != null
                 ? $"Chat ID этого чата: <code>{chatId}</code>\n📌 {chatTitle}"
                 : $"Твой Chat ID: <code>{chatId}</code>";
 
-            await _http.PostAsJsonAsync($"https://api.telegram.org/bot{token}/sendMessage", new
-            {
-                chat_id = chatId,
-                text = reply,
-                parse_mode = "HTML"
-            }, ct);
+            await bot.SendMessage(chatId, reply, parseMode: ParseMode.Html, cancellationToken: ct);
         }
     }
 }

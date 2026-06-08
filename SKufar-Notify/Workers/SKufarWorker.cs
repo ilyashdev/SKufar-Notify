@@ -1,5 +1,8 @@
-using System.Net.Http.Json;
 using System.Text.Json;
+using Telegram.Bot;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
+
 namespace SKufar;
 
 public class SKufarWorker : BackgroundService
@@ -7,13 +10,15 @@ public class SKufarWorker : BackgroundService
     private readonly SKufarQueryService _query;
     private readonly FilterStorageService _filters;
     private readonly AppConfigService _config;
-    private readonly HttpClient _http;
+    private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<SKufarWorker> _logger;
     private readonly string _cachePath;
     private readonly string _placeholderPath;
 
     private Dictionary<string, HashSet<int>> _seen = new();
     private bool _firstCycle = true;
+    private TelegramBotClient? _bot;
+    private string? _botToken;
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(10);
 
     public SKufarWorker(
@@ -27,7 +32,7 @@ public class SKufarWorker : BackgroundService
         _query = query;
         _filters = filters;
         _config = config;
-        _http = httpFactory.CreateClient();
+        _httpFactory = httpFactory;
         _logger = logger;
         _cachePath = Path.Combine(env.ContentRootPath, "Data", "seen.json");
         _placeholderPath = Path.Combine(env.WebRootPath, "1080.jpg");
@@ -115,11 +120,23 @@ public class SKufarWorker : BackgroundService
         AlternativeTags = f.AlternativeTags
     };
 
+    private TelegramBotClient? GetBot(string? token)
+    {
+        if (string.IsNullOrEmpty(token)) return null;
+        if (token != _botToken)
+        {
+            _botToken = token;
+            _bot = new TelegramBotClient(token, _httpFactory.CreateClient());
+        }
+        return _bot;
+    }
+
     private async Task SendAsync(AppConfiguration cfg, string filterName, SkufarAd ad, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(cfg.TelegramBotToken) || string.IsNullOrEmpty(cfg.TelegramChatId))
-            return;
+        var bot = GetBot(cfg.TelegramBotToken);
+        if (bot == null || string.IsNullOrEmpty(cfg.TelegramChatId)) return;
 
+        var chatId = new ChatId(cfg.TelegramChatId);
         var date = DateTime.TryParse(ad.ListTime, out var dt)
             ? dt.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : ad.ListTime;
         var phone = ad.PhoneHidden ? "скрыт" : "доступен";
@@ -134,34 +151,16 @@ public class SKufarWorker : BackgroundService
             $"👤 Продавец: {seller}\n" +
             $"🔗 <a href=\"{ad.Link}\">Открыть объявление</a>";
 
-        var apiUrl = $"https://api.telegram.org/bot{cfg.TelegramBotToken}";
-        HttpResponseMessage resp;
-
         if (ad.Images.Count > 0)
         {
-            resp = await _http.PostAsJsonAsync($"{apiUrl}/sendPhoto", new
-            {
-                chat_id = cfg.TelegramChatId,
-                photo = ad.Images[0],
-                caption,
-                parse_mode = "HTML"
-            }, cancellationToken: ct);
+            await bot.SendPhoto(chatId, InputFile.FromUri(ad.Images[0]),
+                caption: caption, parseMode: ParseMode.Html, cancellationToken: ct);
         }
         else
         {
-            var imageBytes = await File.ReadAllBytesAsync(_placeholderPath, ct);
-            using var form = new MultipartFormDataContent();
-            form.Add(new StringContent(cfg.TelegramChatId), "chat_id");
-            form.Add(new StringContent(caption), "caption");
-            form.Add(new StringContent("HTML"), "parse_mode");
-            form.Add(new ByteArrayContent(imageBytes), "photo", "1080.jpg");
-            resp = await _http.PostAsync($"{apiUrl}/sendPhoto", form, ct);
-        }
-
-        if (!resp.IsSuccessStatusCode)
-        {
-            var body = await resp.Content.ReadAsStringAsync(ct);
-            _logger.LogError("Telegram sendPhoto failed {Status}: {Body}", (int)resp.StatusCode, body);
+            await using var stream = File.OpenRead(_placeholderPath);
+            await bot.SendPhoto(chatId, InputFile.FromStream(stream, "photo.jpg"),
+                caption: caption, parseMode: ParseMode.Html, cancellationToken: ct);
         }
     }
 
