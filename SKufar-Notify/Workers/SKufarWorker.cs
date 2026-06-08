@@ -103,7 +103,8 @@ public class SKufarWorker : BackgroundService
         OnlyWithExchange = f.OnlyWithExchange,
         SortType = 0,
         Category = f.Category, SubCategory = f.SubCategory,
-        Region = f.Region, Areas = f.Areas
+        Region = f.Region, Areas = f.Areas,
+        AlternativeTags = f.AlternativeTags
     };
 
     private async Task SendAsync(AppConfiguration cfg, string filterName, SkufarAd ad, CancellationToken ct)
