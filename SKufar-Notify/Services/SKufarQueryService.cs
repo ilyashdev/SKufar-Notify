@@ -69,15 +69,11 @@ public class SKufarQueryService
 
         if (tags.Count == 1) return await SearchAsync(filter, ct);
 
+        var tasks = tags.Select(tag => SearchAsync(WithTag(filter, tag), ct));
+        var results = await Task.WhenAll(tasks);
+
         var seenIds = new HashSet<int>();
-        var results = new List<SkufarAd>();
-        foreach (var tag in tags)
-        {
-            var ads = await SearchAsync(WithTag(filter, tag), ct);
-            foreach (var ad in ads.Where(a => seenIds.Add(a.Id)))
-                results.Add(ad);
-        }
-        return results;
+        return results.SelectMany(ads => ads).Where(a => seenIds.Add(a.Id)).ToList();
     }
 
     private static SavedFilter WithTag(SavedFilter f, string? tag) => new()
