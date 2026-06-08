@@ -25,7 +25,7 @@ public class TelegramBotService : BackgroundService
         if (token != _botToken)
         {
             _botToken = token;
-            _bot = new TelegramBotClient(token, _httpFactory.CreateClient());
+            _bot = new TelegramBotClient(token, _httpFactory.CreateClient("telegram"));
         }
         return _bot;
     }
@@ -36,18 +36,24 @@ public class TelegramBotService : BackgroundService
         {
             try { await PollAsync(ct); }
             catch (OperationCanceledException) { break; }
-            catch (Exception ex) { _logger.LogError(ex, "Telegram poll error"); }
-
-            await Task.Delay(TimeSpan.FromSeconds(3), ct);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Telegram poll error");
+                await Task.Delay(TimeSpan.FromSeconds(5), ct);
+            }
         }
     }
 
     private async Task PollAsync(CancellationToken ct)
     {
         var bot = GetBot(_config.Get().TelegramBotToken);
-        if (bot == null) return;
+        if (bot == null)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5), ct);
+            return;
+        }
 
-        var updates = await bot.GetUpdates(offset: _offset, limit: 20, cancellationToken: ct);
+        var updates = await bot.GetUpdates(offset: _offset, limit: 20, timeout: 30, cancellationToken: ct);
 
         foreach (var update in updates)
         {

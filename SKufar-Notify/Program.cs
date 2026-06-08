@@ -10,6 +10,8 @@ builder.Services.AddRazorPages(options =>
 });
 
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("telegram")
+    .ConfigureHttpClient(c => c.Timeout = Timeout.InfiniteTimeSpan);
 builder.Services.AddSingleton<FilterStorageService>();
 builder.Services.AddSingleton<AppConfigService>();
 builder.Services.AddTransient<SKufarQueryService>();

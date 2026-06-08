@@ -16,9 +16,11 @@ public class SKufarWorker : BackgroundService
     private readonly string _placeholderPath;
 
     private Dictionary<string, HashSet<int>> _seen = new();
+    private Dictionary<string, string> _filterSignatures = new();
     private bool _firstCycle = true;
     private TelegramBotClient? _bot;
     private string? _botToken;
+    private string? _lastChatId;
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(10);
 
     public SKufarWorker(
@@ -57,6 +59,7 @@ public class SKufarWorker : BackgroundService
     {
         var filters = _filters.GetAll();
         var cfg = _config.Get();
+        _ = GetBot(cfg.TelegramBotToken, cfg.TelegramChatId);
 
         _logger.LogDebug("Cycle started, {Count} filter(s)", filters.Count);
 
@@ -64,8 +67,17 @@ public class SKufarWorker : BackgroundService
         {
             try
             {
+                var workerFilter = WorkerFilter(filter);
+                var signature = JsonSerializer.Serialize(workerFilter);
+                if (_filterSignatures.TryGetValue(filter.Id, out var prevSig) && prevSig != signature)
+                {
+                    _logger.LogInformation("Filter '{Name}' changed, reseeding", filter.Name);
+                    _seen.Remove(filter.Id);
+                }
+                _filterSignatures[filter.Id] = signature;
+
                 _logger.LogDebug("Filter '{Name}': fetching...", filter.Name);
-                var ads = await _query.SearchAllTagsAsync(WorkerFilter(filter), ct);
+                var ads = await _query.SearchAllTagsAsync(workerFilter, ct);
                 var currentIds = ads.Select(a => a.Id).ToHashSet();
 
                 _logger.LogDebug("Filter '{Name}': got {Total} ad(s)", filter.Name, ads.Count);
@@ -120,21 +132,24 @@ public class SKufarWorker : BackgroundService
         AlternativeTags = f.AlternativeTags
     };
 
-    private TelegramBotClient? GetBot(string? token)
+    private TelegramBotClient? GetBot(string? token, string? chatId)
     {
         if (string.IsNullOrEmpty(token)) return null;
-        if (token != _botToken)
+        if (token != _botToken || chatId != _lastChatId)
         {
+            _logger.LogInformation("Telegram config changed, resetting seen cache");
             _botToken = token;
+            _lastChatId = chatId;
             _bot = new TelegramBotClient(token, _httpFactory.CreateClient());
+            _seen.Clear();
+            _firstCycle = true;
         }
         return _bot;
     }
 
     private async Task SendAsync(AppConfiguration cfg, string filterName, SkufarAd ad, CancellationToken ct)
     {
-        var bot = GetBot(cfg.TelegramBotToken);
-        if (bot == null || string.IsNullOrEmpty(cfg.TelegramChatId)) return;
+        if (_bot == null || string.IsNullOrEmpty(cfg.TelegramChatId)) return;
 
         var chatId = new ChatId(cfg.TelegramChatId);
         var date = DateTime.TryParse(ad.ListTime, out var dt)
@@ -153,13 +168,13 @@ public class SKufarWorker : BackgroundService
 
         if (ad.Images.Count > 0)
         {
-            await bot.SendPhoto(chatId, InputFile.FromUri(ad.Images[0]),
+            await _bot!.SendPhoto(chatId, InputFile.FromUri(ad.Images[0]),
                 caption: caption, parseMode: ParseMode.Html, cancellationToken: ct);
         }
         else
         {
             await using var stream = File.OpenRead(_placeholderPath);
-            await bot.SendPhoto(chatId, InputFile.FromStream(stream, "photo.jpg"),
+            await _bot!.SendPhoto(chatId, InputFile.FromStream(stream, "photo.jpg"),
                 caption: caption, parseMode: ParseMode.Html, cancellationToken: ct);
         }
     }
