@@ -21,8 +21,6 @@ public class SKufarWorker : BackgroundService
     private TelegramBotClient? _bot;
     private string? _botToken;
     private string? _lastChatId;
-    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(10);
-
     public SKufarWorker(
         SKufarQueryService query,
         FilterStorageService filters,
@@ -48,7 +46,8 @@ public class SKufarWorker : BackgroundService
             while (!ct.IsCancellationRequested)
             {
                 await RunCycleAsync(ct);
-                await Task.Delay(Interval, ct);
+                var interval = TimeSpan.FromSeconds(_config.Get().CheckIntervalSeconds);
+                await Task.Delay(interval, ct);
             }
         }
         catch (OperationCanceledException) { }
@@ -67,7 +66,7 @@ public class SKufarWorker : BackgroundService
         {
             try
             {
-                var workerFilter = WorkerFilter(filter);
+                var workerFilter = WorkerFilter(filter, cfg.AdsLimit);
                 var signature = JsonSerializer.Serialize(workerFilter);
                 if (_filterSignatures.TryGetValue(filter.Id, out var prevSig) && prevSig != signature)
                 {
@@ -90,9 +89,11 @@ public class SKufarWorker : BackgroundService
                 }
 
                 var blacklist = filter.BlacklistWords ?? new List<string>();
+                var cutoff = DateTime.UtcNow - TimeSpan.FromSeconds(cfg.CheckIntervalSeconds * 3);
                 var newAds = ads
                     .Where(a => !prev.Contains(a.Id))
                     .Where(a => !blacklist.Any(w => a.Title.Contains(w, StringComparison.OrdinalIgnoreCase)))
+                    .Where(a => !DateTime.TryParse(a.ListTime, out var adTime) || adTime.ToUniversalTime() >= cutoff)
                     .ToList();
 
                 _logger.LogInformation("Filter '{Name}': {New} new ad(s)", filter.Name, newAds.Count);
@@ -116,12 +117,12 @@ public class SKufarWorker : BackgroundService
         _logger.LogDebug("Cycle done");
     }
 
-    private static SavedFilter WorkerFilter(SavedFilter f) => new()
+    private static SavedFilter WorkerFilter(SavedFilter f, int limit) => new()
     {
         Id = f.Id, Name = f.Name, CreatedAt = f.CreatedAt,
         Tag = f.Tag, OnlyTitleSearch = f.OnlyTitleSearch,
         PriceMin = f.PriceMin, PriceMax = f.PriceMax,
-        Limit = 20, Currency = f.Currency,
+        Limit = limit, Currency = f.Currency,
         Condition = f.Condition, SellerType = f.SellerType,
         KufarDelivery = f.KufarDelivery, KufarPayment = f.KufarPayment, KufarHalva = f.KufarHalva,
         OnlyWithPhotos = f.OnlyWithPhotos, OnlyWithVideos = f.OnlyWithVideos,
@@ -152,8 +153,9 @@ public class SKufarWorker : BackgroundService
         if (_bot == null || string.IsNullOrEmpty(cfg.TelegramChatId)) return;
 
         var chatId = new ChatId(cfg.TelegramChatId);
+        var tz = GetTimeZone(cfg.TimeZoneId);
         var date = DateTime.TryParse(ad.ListTime, out var dt)
-            ? dt.ToLocalTime().ToString("dd.MM.yyyy HH:mm") : ad.ListTime;
+            ? TimeZoneInfo.ConvertTimeFromUtc(dt.ToUniversalTime(), tz).ToString("dd.MM.yyyy HH:mm") : ad.ListTime;
         var phone = ad.PhoneHidden ? "скрыт" : "доступен";
         var seller = string.IsNullOrWhiteSpace(ad.SellerName) ? "—" : Esc(ad.SellerName);
 
@@ -177,6 +179,13 @@ public class SKufarWorker : BackgroundService
             await _bot!.SendPhoto(chatId, InputFile.FromStream(stream, "photo.jpg"),
                 caption: caption, parseMode: ParseMode.Html, cancellationToken: ct);
         }
+    }
+
+    private static TimeZoneInfo GetTimeZone(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return TimeZoneInfo.Utc;
+        try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
+        catch { return TimeZoneInfo.Utc; }
     }
 
     private static string Esc(string s) =>

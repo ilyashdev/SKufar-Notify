@@ -32,6 +32,34 @@
     </div>
 
     <div class="form-section">
+        <div class="form-section-title">Мониторинг</div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Интервал проверки (сек.)</label>
+                <input type="number" class="form-control" asp-for="CheckIntervalSeconds" min="1">
+                <div class="form-text">Как часто проверять новые объявления. Объявления старше 3× этого значения игнорируются.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Объявлений за раз</label>
+                <input type="number" class="form-control" asp-for="AdsLimit" min="1">
+                <div class="form-text">Сколько последних объявлений запрашивать по каждому фильтру.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Часовой пояс</label>
+                <select class="form-select" asp-for="TimeZoneId">
+                    @foreach (var tz in Model.AvailableTimeZones)
+                    {
+                        <option value="@tz.Id" selected="@(tz.Id == Model.TimeZoneId ? "selected" : null)">
+                            @tz.DisplayName
+                        </option>
+                    }
+                </select>
+                <div class="form-text">Используется для отображения даты объявления в Telegram.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
         <div class="form-section-title">Telegram</div>
         <div class="row g-3">
             <div class="col-md-6">
