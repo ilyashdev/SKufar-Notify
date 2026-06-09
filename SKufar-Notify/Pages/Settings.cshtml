@@ -13,6 +13,14 @@
 {
     <div class="alert alert-success rounded-3 mb-4">Настройки сохранены.</div>
 }
+@if (Model.Imported)
+{
+    <div class="alert alert-success rounded-3 mb-4">Резервная копия успешно восстановлена.</div>
+}
+@if (Model.ImportError != null)
+{
+    <div class="alert alert-danger rounded-3 mb-4">@Model.ImportError</div>
+}
 
 <form method="post">
     @Html.AntiForgeryToken()
@@ -82,3 +90,24 @@
         <a asp-page="/Index" class="btn btn-skufar-outline px-4">Назад</a>
     </div>
 </form>
+
+<div class="form-section mt-4">
+    <div class="form-section-title">Резервная копия</div>
+    <div class="row g-3 align-items-end">
+        <div class="col-auto">
+            <a asp-page-handler="Export" class="btn btn-skufar-outline px-4">Скачать backup.json</a>
+            <div class="form-text">Сохраняет настройки и все фильтры в один файл.</div>
+        </div>
+        <div class="col-md-6">
+            <form method="post" enctype="multipart/form-data" asp-page-handler="Import">
+                @Html.AntiForgeryToken()
+                <label class="form-label">Восстановить из файла</label>
+                <div class="input-group">
+                    <input type="file" class="form-control" name="file" accept=".json">
+                    <button type="submit" class="btn btn-skufar">Импортировать</button>
+                </div>
+                <div class="form-text">Фильтры из файла добавятся к существующим (дубликаты по ID обновятся).</div>
+            </form>
+        </div>
+    </div>
+</div>
