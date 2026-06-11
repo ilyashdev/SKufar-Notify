@@ -89,7 +89,7 @@ public class SKufarWorker : BackgroundService
                 }
 
                 var blacklist = filter.BlacklistWords ?? new List<string>();
-                var cutoff = DateTime.UtcNow - TimeSpan.FromSeconds(cfg.CheckIntervalSeconds * 3);
+                var cutoff = DateTime.UtcNow - TimeSpan.FromHours(12);
                 var newAds = ads
                     .Where(a => !prev.Contains(a.Id))
                     .Where(a => !blacklist.Any(w => a.Title.Contains(w, StringComparison.OrdinalIgnoreCase)))
