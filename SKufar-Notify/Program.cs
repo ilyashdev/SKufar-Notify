@@ -14,6 +14,7 @@ builder.Services.AddHttpClient("telegram")
     .ConfigureHttpClient(c => c.Timeout = Timeout.InfiniteTimeSpan);
 builder.Services.AddSingleton<FilterStorageService>();
 builder.Services.AddSingleton<AppConfigService>();
+builder.Services.AddSingleton<TelegramClientProvider>();
 builder.Services.AddTransient<SKufarQueryService>();
 builder.Services.AddHostedService<SKufarWorker>();
 builder.Services.AddHostedService<TelegramBotService>();
