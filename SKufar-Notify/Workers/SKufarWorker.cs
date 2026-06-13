@@ -27,13 +27,14 @@ public class SKufarWorker : BackgroundService
         AppConfigService config,
         IHttpClientFactory httpFactory,
         IWebHostEnvironment env,
-        ILogger<SKufarWorker> logger)
+        ILogger<SKufarWorker> logger, TelegramClientProvider? botProvider)
     {
         _query = query;
         _filters = filters;
         _config = config;
         _httpFactory = httpFactory;
         _logger = logger;
+        _botProvider = botProvider;
         _cachePath = Path.Combine(env.ContentRootPath, "Data", "seen.json");
         _placeholderPath = Path.Combine(env.WebRootPath, "1080.jpg");
     }

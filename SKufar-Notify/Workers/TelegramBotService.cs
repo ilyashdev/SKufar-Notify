@@ -12,11 +12,12 @@ public class TelegramBotService : BackgroundService
     private TelegramClientProvider? _botProvider;
     private string? _botToken;
 
-    public TelegramBotService(AppConfigService config, IHttpClientFactory httpFactory, ILogger<TelegramBotService> logger)
+    public TelegramBotService(AppConfigService config, IHttpClientFactory httpFactory, ILogger<TelegramBotService> logger, TelegramClientProvider? botProvider)
     {
         _config = config;
         _httpFactory = httpFactory;
         _logger = logger;
+        _botProvider = botProvider;
     }
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
