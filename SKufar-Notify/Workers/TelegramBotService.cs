@@ -9,7 +9,7 @@ public class TelegramBotService : BackgroundService
     private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<TelegramBotService> _logger;
     private int _offset;
-    private TelegramBotClient? _bot;
+    private TelegramClientProvider? _botProvider;
     private string? _botToken;
 
     public TelegramBotService(AppConfigService config, IHttpClientFactory httpFactory, ILogger<TelegramBotService> logger)
@@ -18,18 +18,6 @@ public class TelegramBotService : BackgroundService
         _httpFactory = httpFactory;
         _logger = logger;
     }
-
-    private TelegramBotClient? GetBot(string? token)
-    {
-        if (string.IsNullOrEmpty(token)) return null;
-        if (token != _botToken)
-        {
-            _botToken = token;
-            _bot = new TelegramBotClient(token, _httpFactory.CreateClient("telegram"));
-        }
-        return _bot;
-    }
-
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
@@ -46,7 +34,7 @@ public class TelegramBotService : BackgroundService
 
     private async Task PollAsync(CancellationToken ct)
     {
-        var bot = GetBot(_config.Get().TelegramBotToken);
+        var bot = _botProvider.Get(_config.Get().TelegramBotToken);
         if (bot == null)
         {
             await Task.Delay(TimeSpan.FromSeconds(5), ct);

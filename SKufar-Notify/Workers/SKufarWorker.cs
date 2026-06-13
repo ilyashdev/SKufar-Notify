@@ -18,7 +18,7 @@ public class SKufarWorker : BackgroundService
     private Dictionary<string, HashSet<int>> _seen = new();
     private Dictionary<string, string> _filterSignatures = new();
     private bool _firstCycle = true;
-    private TelegramBotClient? _bot;
+    private TelegramClientProvider? _botProvider;
     private string? _botToken;
     private string? _lastChatId;
     public SKufarWorker(
@@ -58,7 +58,7 @@ public class SKufarWorker : BackgroundService
     {
         var filters = _filters.GetAll();
         var cfg = _config.Get();
-        _ = GetBot(cfg.TelegramBotToken, cfg.TelegramChatId);
+        
 
         _logger.LogDebug("Cycle started, {Count} filter(s)", filters.Count);
 
@@ -133,24 +133,10 @@ public class SKufarWorker : BackgroundService
         AlternativeTags = f.AlternativeTags
     };
 
-    private TelegramBotClient? GetBot(string? token, string? chatId)
-    {
-        if (string.IsNullOrEmpty(token)) return null;
-        if (token != _botToken || chatId != _lastChatId)
-        {
-            _logger.LogInformation("Telegram config changed, resetting seen cache");
-            _botToken = token;
-            _lastChatId = chatId;
-            _bot = new TelegramBotClient(token, _httpFactory.CreateClient());
-            _seen.Clear();
-            _firstCycle = true;
-        }
-        return _bot;
-    }
-
     private async Task SendAsync(AppConfiguration cfg, string filterName, SkufarAd ad, CancellationToken ct)
     {
-        if (_bot == null || string.IsNullOrEmpty(cfg.TelegramChatId)) return;
+        var bot = _botProvider.Get(_botToken);
+        if (bot == null || string.IsNullOrEmpty(cfg.TelegramChatId)) return;
 
         var chatId = new ChatId(cfg.TelegramChatId);
         var tz = GetTimeZone(cfg.TimeZoneId);
@@ -170,13 +156,13 @@ public class SKufarWorker : BackgroundService
 
         if (ad.Images.Count > 0)
         {
-            await _bot!.SendPhoto(chatId, InputFile.FromUri(ad.Images[0]),
+            await bot!.SendPhoto(chatId, InputFile.FromUri(ad.Images[0]),
                 caption: caption, parseMode: ParseMode.Html, cancellationToken: ct);
         }
         else
         {
             await using var stream = File.OpenRead(_placeholderPath);
-            await _bot!.SendPhoto(chatId, InputFile.FromStream(stream, "photo.jpg"),
+            await bot!.SendPhoto(chatId, InputFile.FromStream(stream, "photo.jpg"),
                 caption: caption, parseMode: ParseMode.Html, cancellationToken: ct);
         }
     }
